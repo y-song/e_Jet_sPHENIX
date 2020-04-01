@@ -20,10 +20,11 @@
 #include <iostream>
 #include <fstream>
 #include <TMath.h>
-#include <vector>
-#include <math.h>
 
 #define NTRACK_MAX (1U << 14)
+
+#include <vector>
+#include <math.h>
 
 const int MAX_INPUT_LENGTH = 200;
 int counter = 0;
@@ -31,15 +32,20 @@ int counter = 0;
 float calc_Q_square(float inE, TLorentzVector v)
 {
   float Qs = 2.*inE*v.E()*(1-TMath::Abs(v.CosTheta()));
+
+  // if (Qs < 16.0){
+  //   counter++;
+  // std::cout<<" Energy = "<<v.E()<<" Theta = "<<v.Theta()<<" Q^2 = "<<Qs<< " Counter = "<<counter<<std::endl;
+  // }
   return Qs;
 }
-
 int main(int argc, char *argv[])
 {
   if (argc < 2) {
     std::cout<<"Syntax: [Command] [File]"<<std::endl;
     exit(EXIT_FAILURE);
   }
+  //for (int iarg = 1; iarg < argc; iarg++) {
   int iarg = 1;
   TString root_file = (TString)argv[iarg];
   
@@ -157,6 +163,7 @@ int main(int argc, char *argv[])
   Float_t truth_jet_eta[200];
   Float_t truth_jet_phi[200];
 
+
   gStyle->SetOptStat("emr");
   gStyle->SetStatY(0.85);
   gStyle->SetStatX(0.87);
@@ -171,9 +178,7 @@ int main(int argc, char *argv[])
   //2D Histos
   TH2F * Tjve = new TH2F("ETrueJet_vs_Eelectron", "E^{True}_{Jet} (|#eta^{Jet}|<0.7) vs. E_{e}^{True}",100,0,25,100,0,25);
   TH2F * Rjve = new TH2F("ERecoJet_vs_Eelectron", "E^{Reco}_{Jet} (|#eta^{Jet}|<0.7) vs. E_{e}^{True}",100,0,25,100,0,25);
-  //TH2F * eff = new TH2F("eff_vs_ETrueJet", "Efficiency vs E_{jet}^{tru}", 30, 0, 30, 100, 0, 1);
 
-  //1D Histos
   //Ratio Histos
   TH1F * eoTj = new TH1F("ETrueJet_over_Eelectron", "E_{Reco}^{True}/E^{True}_{e} (|#eta^{Jet}|<0.7)",80,0,2);
   TH1F * eoRj = new TH1F("Eelectron_over_ERecoJet_over_Eelectron", "E_{Jet}^{Reco}/E^{True}_{e} (|#eta^{Jet}|<0.7)",80,0,2);
@@ -187,11 +192,9 @@ int main(int argc, char *argv[])
   TH1F * dEtaTj = new TH1F("dEta_e_TrueJet", "|#Delta#eta| (#eta_{e} - #eta^{True}_{Jet})", 80,-10,10);
   TH1F * dEtaRj = new TH1F("dEta_e_RecoJet", "|#Delta#eta| (#eta_{e} - #eta^{Reco}_{Jet})", 80,-10,10);
   //Q^2
-  TH1F * Q2 = new TH1F("Q2","Q^{2}",500,0,500);
-
-  int count [30] = {0};
-  int count_rec [30] = {0};
-
+  TH1F* Q2 = new TH1F("Q2","Q^{2}",500,0,500);
+  
+  
   Long64_t nentries = _tree_event->GetEntries();
   for(Long64_t ie = 0; ie < nentries ; ie++){
     _tree_event->GetEntry(ie); //each entry is a 5GeV Electron
@@ -213,22 +216,11 @@ int main(int argc, char *argv[])
     e_vector.SetPtEtaPhiE(etruthPt,etruthEta,etruthPhi,etruthE);
     Float_t Q_square = calc_Q_square(20,e_vector); //Electron Beam of 20 GeV/c
     Q2->Fill(Q_square);    
-
     //Inclusive Spectra
     Rjve->Fill(etruthE,e);
     Tjve->Fill(etruthE,truthE);
     RjoTj->Fill(e/truthE);
-
-    //Efficiency
-    for (int i = 0; i < 30; i++){
-	if (truthE > i && truthE < i+1){
-		count[i] += 1;
-		if (TMath::Abs(eta-truthEta) < 0.5){
-			count_rec[i] += 1;
-		}
-	}
-    }
-
+    
     //Kinematic Cuts
     if (True_DeltaPhi < M_PI/2) continue;
     if (truthE < 3.0) continue;
@@ -238,18 +230,18 @@ int main(int argc, char *argv[])
     eoRj->Fill(e/etruthE);
     emTj->Fill(etruthE-truthE);
     emRj->Fill(etruthE-e);
- } //entry loop
+
+    // if (already_matched)
+    //   Extra_Match_Count ++;
+    // already_matched = true;
     
-  //Write to new file
-  FILE *f;
-  char output[] = "eff.txt";
-  f = fopen(output, "w");
-  for (int j = 0; j < 30; j++){
-  	fprintf(f, "%d\t%d\n", count[j], count_rec[j]);
-  }
-  fclose(f);
-  
-  //Write to new root file
+    // H_NExtra_Matches->Fill(Extra_Match_Count);
+	
+  } //entry loop
+
+
+
+//Write to new root file
   TFile* fout = new TFile("Histograms_Jet_Callibration.root","RECREATE");
 
   Tjve->GetXaxis()->SetTitle("E^{True}_{electron} [GeV]");
@@ -258,7 +250,7 @@ int main(int argc, char *argv[])
   Rjve->GetYaxis()->SetTitle("E^{Reco}_{Jet} [GeV]");
   Tjve->Write();
   Rjve->Write();
-  
+
   eoTj->GetXaxis()->SetTitle("E_{e}/E_{jet}");
   eoRj->GetXaxis()->SetTitle("E_{e}/E_{jet}");
   eoTj->Write();
@@ -283,4 +275,7 @@ int main(int argc, char *argv[])
   dEtaRj->Write();
 
   Q2->Write();
+  // H_dR->Write();
+  // H_NExtra_Matches->Write();
+
 }
