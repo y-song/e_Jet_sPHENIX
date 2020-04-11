@@ -63,19 +63,20 @@ int main(int argc, char *argv[])
 
   //Declare Leaf Types
   Int_t           m_event;
-  Int_t           id;
-  Int_t           nComponent;
-  Float_t         eta;
-  Float_t         phi;
-  Float_t         e;
-  Float_t         pt;
-  Int_t           truthID;
-  Int_t           truthNComponent;
-  Float_t         truthEta;
-  Float_t         truthPhi;
-  Float_t         truthE;
-  Float_t         truthPt;
-  Int_t           nMatchedTrack;
+  enum {MaxNumJets = 10};
+  std::array <Int_t,MaxNumJets>           id;
+  std::array <Int_t,MaxNumJets>           nComponent;
+  std::array <Float_t,MaxNumJets>         eta;
+  std::array <Float_t,MaxNumJets>         phi;
+  std::array <Float_t,MaxNumJets>         e;
+  std::array <Float_t,MaxNumJets>         pt;
+  std::array <Int_t,MaxNumJets>           truthID;
+  std::array <Int_t,MaxNumJets>           truthNComponent;
+  std::array <Float_t,MaxNumJets>         truthEta;
+  std::array <Float_t,MaxNumJets>         truthPhi;
+  std::array <Float_t,MaxNumJets>         truthE;
+  std::array <Float_t,MaxNumJets>         truthPt;
+
   //Electron Truth Variables
   Float_t         etruthEta;
   Float_t         etruthPhi;
@@ -101,8 +102,6 @@ int main(int argc, char *argv[])
   TBranch        *b_truthPhi;
   TBranch        *b_truthE;
   TBranch        *b_truthPt;
-  TBranch        *b_nMatchedTrack;
-
   TBranch        *b_etruthEta;
   TBranch        *b_etruthPhi;
   TBranch        *b_etruthE;
@@ -127,8 +126,7 @@ int main(int argc, char *argv[])
   _tree_event->SetBranchAddress("truthPhi", &truthPhi, &b_truthPhi);
   _tree_event->SetBranchAddress("truthE", &truthE, &b_truthE);
   _tree_event->SetBranchAddress("truthPt", &truthPt, &b_truthPt);
-  _tree_event->SetBranchAddress("nMatchedTrack", &nMatchedTrack, &b_nMatchedTrack);
-  
+ 
   _tree_event->SetBranchAddress("etruthEta", &etruthEta, &b_etruthEta);
   _tree_event->SetBranchAddress("etruthPhi", &etruthPhi, &b_etruthPhi);
   _tree_event->SetBranchAddress("etruthE", &etruthE, &b_etruthE);
@@ -138,25 +136,7 @@ int main(int argc, char *argv[])
   _tree_event->SetBranchAddress("etruthpZ", &etruthpZ, &b_etruthpZ);
   _tree_event->SetBranchAddress("etruthPt", &etruthPt, &b_etruthPt);
   _tree_event->SetBranchAddress("etruthPID", &etruthPID, &b_etruthPID);
-  _tree_event->SetBranchAddress("etruthParentID", &etruthParentID, &b_etruthParentID);
-
-  int jet4_n;
-  Float_t reco_jet_pt[200];
-  Float_t reco_jet_E[200];
-  Float_t reco_jet_m[200];
-  int reco_jet_ncomp[250];
-  Float_t reco_jet_eta[200];
-  Float_t reco_jet_phi[200];
-  float reco_jet_E_layer0[200];
-  float reco_jet_E_layer1[200];
-  float reco_jet_E_layer2[200];
-
-  int truth_jet_n;
-  Float_t truth_jet_pt[200];
-  Float_t truth_jet_m[200];
-  Float_t truth_jet_eta[200];
-  Float_t truth_jet_phi[200];
-
+  
   gStyle->SetOptStat("emr");
   gStyle->SetStatY(0.85);
   gStyle->SetStatX(0.87);
@@ -197,28 +177,6 @@ int main(int argc, char *argv[])
     _tree_event->GetEntry(ie); //each entry is a 5GeV Electron
     fprintf(stderr, "\r%s:%d: %llu / %llu", __FILE__, __LINE__, ie, nentries);
 
-    //Check for Truth Jets an NComponent > 2
-    if(isnan(truthEta)) continue;
-    if(nMatchedTrack < 3) continue;
-
-    //Detector Coordinate Histos
-    Float_t True_DeltaPhi = TMath::Abs(TVector2::Phi_mpi_pi(etruthPhi - truthPhi));
-    Float_t Reco_DeltaPhi = TMath::Abs(TVector2::Phi_mpi_pi(etruthPhi - phi));
-    dPhiTj->Fill(True_DeltaPhi);
-    dPhiRj->Fill(Reco_DeltaPhi);
-    dEtaTj->Fill(etruthEta-truthEta);
-    dEtaRj->Fill(etruthEta-eta);
-
-    TLorentzVector e_vector;
-    e_vector.SetPtEtaPhiE(etruthPt,etruthEta,etruthPhi,etruthE);
-    Float_t Q_square = calc_Q_square(20,e_vector); //Electron Beam of 20 GeV/c
-    Q2->Fill(Q_square);    
-
-    //Inclusive Spectra
-    Rjve->Fill(etruthE,e);
-    Tjve->Fill(etruthE,truthE);
-    RjoTj->Fill(e/truthE);
-
     //Efficiency
     for (int i = 0; i < 30; i++){
 	if (truthE > i && truthE < i+1){
@@ -229,16 +187,7 @@ int main(int argc, char *argv[])
 	}
     }
 
-    //Kinematic Cuts
-    if (True_DeltaPhi < M_PI/2) continue;
-    if (truthE < 3.0) continue;
-    if (TMath::Abs(eta) < 0.7) continue;
-    //Electron/Jet Comparisons
-    eoTj->Fill(truthE/etruthE);
-    eoRj->Fill(e/etruthE);
-    emTj->Fill(etruthE-truthE);
-    emRj->Fill(etruthE-e);
- } //entry loop
+  } //entry loop
     
   //Write to new file
   FILE *f;
@@ -248,39 +197,4 @@ int main(int argc, char *argv[])
   	fprintf(f, "%d\t%d\n", count[j], count_rec[j]);
   }
   fclose(f);
-  
-  //Write to new root file
-  TFile* fout = new TFile("Histograms_Jet_Callibration.root","RECREATE");
-
-  Tjve->GetXaxis()->SetTitle("E^{True}_{electron} [GeV]");
-  Rjve->GetXaxis()->SetTitle("E^{True}_{electron} [GeV]");
-  Tjve->GetYaxis()->SetTitle("E^{True}_{Jet} [GeV]");
-  Rjve->GetYaxis()->SetTitle("E^{Reco}_{Jet} [GeV]");
-  Tjve->Write();
-  Rjve->Write();
-  
-  eoTj->GetXaxis()->SetTitle("E_{e}/E_{jet}");
-  eoRj->GetXaxis()->SetTitle("E_{e}/E_{jet}");
-  eoTj->Write();
-  eoRj->Write();
-
-  RjoTj->GetXaxis()->SetTitle("E_{Jet}^{Reco}/E_{Jet}^{True}");
-  RjoTj->Write();
-
-  emTj->GetXaxis()->SetTitle("E_{e}-E_{jet}");
-  emRj->GetXaxis()->SetTitle("E_{e}-E_{jet}");
-  emTj->Write();
-  emRj->Write();
-
-  dPhiTj->GetXaxis()->SetTitle("#Delta#varphi");
-  dPhiRj->GetXaxis()->SetTitle("#Delta#varphi");
-  dPhiTj->Write();
-  dPhiRj->Write();
-
-  dEtaTj->GetXaxis()->SetTitle("#Delta#eta");
-  dEtaRj->GetXaxis()->SetTitle("#Delta#eta");
-  dEtaTj->Write();
-  dEtaRj->Write();
-
-  Q2->Write();
 }
